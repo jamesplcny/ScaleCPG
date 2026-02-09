@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScaleCPG — Inbox</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #FAF7F4;
+    --bg-secondary: #F3EDE7;
+    --bg-card: #FFFFFF;
+    --text-primary: #1A1714;
+    --text-secondary: #6B6560;
+    --text-muted: #A49E98;
+    --accent-rose: #C4827A;
+    --accent-rose-light: #E8C4BF;
+    --accent-gold: #B8965A;
+    --accent-gold-light: #E8D5B5;
+    --accent-sage: #8A9A7B;
+    --accent-sage-light: #C5D1BC;
+    --accent-plum: #8B7291;
+    --accent-plum-light: #C9BBCE;
+    --border: #E8E2DB;
+    --shadow-sm: 0 1px 3px rgba(26,23,20,0.04);
+    --shadow-md: 0 4px 16px rgba(26,23,20,0.06);
+    --shadow-lg: 0 8px 32px rgba(26,23,20,0.08);
+    --shadow-hover: 0 12px 40px rgba(26,23,20,0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* --- Sidebar --- */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--text-primary);
+    color: #fff;
+    padding: 32px 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-brand { padding: 0 28px; margin-bottom: 40px; }
+
+  .sidebar-brand h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 28px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .sidebar-brand span {
+    display: block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 12px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    text-decoration: none;
+    position: relative;
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.85);
+  }
+
+  .nav-item.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: var(--accent-rose);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .nav-icon { width: 20px; height: 20px; opacity: 0.7; flex-shrink: 0; }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent-rose);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .sidebar-footer {
+    padding: 20px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 0 12px;
+  }
+
+  .user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .user-profile:hover { background: rgba(255,255,255,0.06); }
+
+  .user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-rose), var(--accent-plum));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .user-info h4 { font-size: 13px; font-weight: 500; color: #fff; }
+  .user-info p { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* --- Main Content --- */
+  .main {
+    margin-left: 260px;
+    padding: 32px 40px;
+    min-height: 100vh;
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 36px;
+  }
+
+  .top-bar-left h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-size: 32px;
+    color: var(--text-primary);
+  }
+
+  .top-bar-left p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    min-width: 240px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-bar:focus-within {
+    border-color: var(--accent-rose-light);
+    box-shadow: 0 0 0 3px rgba(196,130,122,0.1);
+  }
+
+  .search-bar input {
+    border: none;
+    outline: none;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    background: transparent;
+    color: var(--text-primary);
+    width: 100%;
+  }
+
+  .search-bar input::placeholder { color: var(--text-muted); }
+
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .icon-btn:hover {
+    border-color: var(--accent-rose-light);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .icon-btn .dot {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 7px; height: 7px;
+    background: var(--accent-rose);
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+  }
+
+  /* --- Filter Tabs --- */
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .filter-tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .filter-tab:hover {
+    color: var(--text-primary);
+  }
+
+  .filter-tab.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .filter-tab .tab-count {
+    display: inline-block;
+    background: var(--accent-rose);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 6px;
+  }
+
+  .filter-tab.active .tab-count {
+    background: var(--accent-rose);
+  }
+
+  /* --- Inbox Layout --- */
+  .inbox-container {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 24px;
+    min-height: calc(100vh - 200px);
+  }
+
+  /* --- Message List --- */
+  .message-list {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .message-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+  }
+
+  .message-item:last-child { border-bottom: none; }
+  .message-item:hover { background: var(--bg-secondary); }
+
+  .message-item.active {
+    background: var(--bg-secondary);
+  }
+
+  .message-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent-rose);
+  }
+
+  .message-item.unread .message-sender { font-weight: 600; }
+  .message-item.unread .message-preview { color: var(--text-primary); }
+
+  .message-unread-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-rose);
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  .message-unread-dot.read { background: transparent; }
+
+  .message-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .message-content { flex: 1; min-width: 0; }
+
+  .message-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .message-sender {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  .message-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .message-subject {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .message-preview {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .message-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .message-tag {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .tag-urgent {
+    background: rgba(196,130,122,0.12);
+    color: var(--accent-rose);
+  }
+
+  .tag-approval {
+    background: rgba(184,150,90,0.12);
+    color: var(--accent-gold);
+  }
+
+  .tag-formulation {
+    background: rgba(138,154,123,0.12);
+    color: var(--accent-sage);
+  }
+
+  .tag-shipping {
+    background: rgba(139,114,145,0.12);
+    color: var(--accent-plum);
+  }
+
+  /* --- Message Detail --- */
+  .message-detail {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    animation: fadeInUp 0.5s ease forwards;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-sender {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .detail-sender-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .detail-sender-info h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 20px;
+    margin-bottom: 2px;
+  }
+
+  .detail-sender-info p {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .detail-action-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .detail-action-btn:hover {
+    border-color: var(--accent-rose-light);
+    background: var(--bg-secondary);
+  }
+
+  .detail-subject {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .detail-body {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+  }
+
+  .detail-body p {
+    margin-bottom: 14px;
+  }
+
+  .detail-attachment {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .detail-attachment:hover { background: var(--border); }
+
+  .attachment-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+
+  .attachment-info h4 {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  .attachment-info p {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .detail-reply {
+    display: flex;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .reply-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .reply-input:focus {
+    outline: none;
+    border-color: var(--accent-rose-light);
+    box-shadow: 0 0 0 3px rgba(196,130,122,0.1);
+  }
+
+  .reply-input::placeholder { color: var(--text-muted); }
+
+  .reply-btn {
+    padding: 12px 24px;
+    background: var(--accent-rose);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reply-btn:hover {
+    filter: brightness(0.9);
+    box-shadow: 0 4px 12px rgba(196,130,122,0.3);
+  }
+
+  /* --- Animations --- */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message-list { animation: fadeInUp 0.5s ease forwards; opacity: 0; animation-delay: 0.05s; }
+  .message-detail { opacity: 0; animation-delay: 0.15s; }
+
+  /* --- Responsive --- */
+  @media (max-width: 1024px) {
+    .sidebar { transform: translateX(-100%); }
+    .main { margin-left: 0; padding: 24px 20px; }
+    .inbox-container { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    .top-bar { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .search-bar { min-width: 100%; }
+    .filter-tabs { overflow-x: auto; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <h1>ScaleCPG</h1>
+    <span>Manufacturing Suite</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item active" href="inbox.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+      Inbox
+      <span class="nav-badge">12</span>
+    </a>
+    <a class="nav-item" href="clients.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+      Clients
+    </a>
+    <a class="nav-item" href="product-builder.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.316 1.316A2.25 2.25 0 0016.06 16.5H7.94a2.25 2.25 0 01-1.624-.684L5 14.5m14 0v3.75a2.25 2.25 0 01-2.25 2.25H7.25A2.25 2.25 0 015 18.25V14.5"/></svg>
+      Product Builder
+    </a>
+    <a class="nav-item" href="inventory.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+      Inventory
+    </a>
+    <div style="height: 12px"></div>
+    <a class="nav-item" href="analytics.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      Analytics
+    </a>
+    <a class="nav-item" href="settings.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-profile">
+      <div class="user-avatar">JL</div>
+      <div class="user-info">
+        <h4>James Lim</h4>
+        <p>Production Manager</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h2>Inbox</h2>
+      <p>Messages, approvals, and requests from your brand clients.</p>
+    </div>
+    <div class="top-bar-right">
+      <div class="search-bar">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A49E98" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search messages...">
+      </div>
+      <div class="icon-btn">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#6B6560" stroke-width="1.5"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+        <span class="dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    <button class="filter-tab active">All <span class="tab-count">12</span></button>
+    <button class="filter-tab">Unread <span class="tab-count">5</span></button>
+    <button class="filter-tab">Urgent <span class="tab-count">3</span></button>
+    <button class="filter-tab">Approvals</button>
+    <button class="filter-tab">Shipping</button>
+  </div>
+
+  <!-- Inbox Two-Column Layout -->
+  <div class="inbox-container">
+
+    <!-- Message List -->
+    <div class="message-list">
+
+      <div class="message-item active unread">
+        <span class="message-unread-dot"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-rose), var(--accent-rose-light));">GB</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Glow Botanics</span>
+            <span class="message-time">12 min ago</span>
+          </div>
+          <div class="message-subject">Revision request — Vitamin C Serum batch #GB-2247</div>
+          <div class="message-preview">Hi James, we'd like to adjust the concentration from 15% to 20% on the latest formulation...</div>
+          <div class="message-tags">
+            <span class="message-tag tag-urgent">Urgent</span>
+            <span class="message-tag tag-formulation">Formulation</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-item unread">
+        <span class="message-unread-dot"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));">AB</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Aura Beauty Co.</span>
+            <span class="message-time">45 min ago</span>
+          </div>
+          <div class="message-subject">QA approval needed — Velvet Skin SPF 50</div>
+          <div class="message-preview">The latest batch has passed our internal review. Please approve to move to production...</div>
+          <div class="message-tags">
+            <span class="message-tag tag-approval">Approval</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-item unread">
+        <span class="message-unread-dot"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-plum), var(--accent-plum-light));">NS</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Nuit Skincare</span>
+            <span class="message-time">2 hrs ago</span>
+          </div>
+          <div class="message-subject">Shipping confirmation — Batch #NK-1183</div>
+          <div class="message-preview">Can you confirm the dispatch details for the 4,200 units of Retinol Night Cream?</div>
+          <div class="message-tags">
+            <span class="message-tag tag-shipping">Shipping</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-item unread">
+        <span class="message-unread-dot"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-rose), var(--accent-rose-light));">RC</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Rosé Cosmétique</span>
+            <span class="message-time">3 hrs ago</span>
+          </div>
+          <div class="message-subject">Initial consultation follow-up</div>
+          <div class="message-preview">Thank you for the onboarding call yesterday. Attached are the formulation briefs for our first 3 SKUs...</div>
+          <div class="message-tags">
+            <span class="message-tag tag-formulation">Formulation</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-item">
+        <span class="message-unread-dot read"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-sage), var(--accent-sage-light));">VV</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Velvet &amp; Vine</span>
+            <span class="message-time">Yesterday</span>
+          </div>
+          <div class="message-subject">Q1 production schedule review</div>
+          <div class="message-preview">James, let's review the Q1 schedule for our expanded line. We're looking at 12 new SKUs...</div>
+        </div>
+      </div>
+
+      <div class="message-item unread">
+        <span class="message-unread-dot"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));">HD</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Halo Derma</span>
+            <span class="message-time">Yesterday</span>
+          </div>
+          <div class="message-subject">Ingredient substitution request — Niacinamide Serum</div>
+          <div class="message-preview">Due to supply chain constraints, can we explore alternative sources for the zinc PCA?</div>
+          <div class="message-tags">
+            <span class="message-tag tag-urgent">Urgent</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-item">
+        <span class="message-unread-dot read"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-sage), var(--accent-sage-light));">BR</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Bare Roots</span>
+            <span class="message-time">2 days ago</span>
+          </div>
+          <div class="message-subject">Packaging update — New sustainable bottles</div>
+          <div class="message-preview">We've finalized the switch to PCR bottles. Attached are updated specs for all 28 SKUs...</div>
+        </div>
+      </div>
+
+      <div class="message-item">
+        <span class="message-unread-dot read"></span>
+        <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));">SL</div>
+        <div class="message-content">
+          <div class="message-top">
+            <span class="message-sender">Soleil Labs</span>
+            <span class="message-time">3 days ago</span>
+          </div>
+          <div class="message-subject">SPF testing results — Broad Spectrum Sunscreen</div>
+          <div class="message-preview">Great news, the SPF 50+ rating has been confirmed by the independent lab. Full report attached...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Message Detail -->
+    <div class="message-detail">
+      <div class="detail-header">
+        <div class="detail-sender">
+          <div class="detail-sender-avatar" style="background: linear-gradient(135deg, var(--accent-rose), var(--accent-rose-light));">GB</div>
+          <div class="detail-sender-info">
+            <h3>Glow Botanics</h3>
+            <p>Sarah Chen — Brand Director &middot; 12 min ago</p>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <div class="detail-action-btn">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6B6560" stroke-width="1.5"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg>
+          </div>
+          <div class="detail-action-btn">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6B6560" stroke-width="1.5"><path d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"/></svg>
+          </div>
+          <div class="detail-action-btn">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6B6560" stroke-width="1.5"><path d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="detail-subject">Revision request — Vitamin C Serum batch #GB-2247</h3>
+
+      <div class="detail-body">
+        <p>Hi James,</p>
+        <p>After reviewing the latest sample results for our Vitamin C Brightening Serum (batch #GB-2247), we'd like to request a concentration adjustment. Our dermatology consultants have recommended increasing the L-Ascorbic Acid concentration from 15% to 20% for better clinical efficacy.</p>
+        <p>We understand this may impact the formulation stability, so we'd also like to discuss adding Ferulic Acid as a stabilizer. Could you provide a revised quote and updated timeline?</p>
+        <p>I've attached the updated formulation brief with the detailed specifications. Please let us know if you need any additional information.</p>
+        <p>Best regards,<br>Sarah Chen<br>Brand Director, Glow Botanics</p>
+      </div>
+
+      <div class="detail-attachment">
+        <div class="attachment-icon">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#6B6560" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+        </div>
+        <div class="attachment-info">
+          <h4>GB-2247_Revised_Formulation_Brief.pdf</h4>
+          <p>PDF &middot; 2.4 MB</p>
+        </div>
+      </div>
+
+      <div class="detail-reply">
+        <input type="text" class="reply-input" placeholder="Write a reply...">
+        <button class="reply-btn">Send</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>
