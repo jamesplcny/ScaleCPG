@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScaleCPG — Halo Derma</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #FAF7F4;
+    --bg-secondary: #F3EDE7;
+    --bg-card: #FFFFFF;
+    --text-primary: #1A1714;
+    --text-secondary: #6B6560;
+    --text-muted: #A49E98;
+    --accent-rose: #C4827A;
+    --accent-rose-light: #E8C4BF;
+    --accent-gold: #B8965A;
+    --accent-gold-light: #E8D5B5;
+    --accent-sage: #8A9A7B;
+    --accent-sage-light: #C5D1BC;
+    --accent-plum: #8B7291;
+    --accent-plum-light: #C9BBCE;
+    --accent-teal: #6B9E9E;
+    --accent-teal-light: #B8D4D4;
+    --border: #E8E2DB;
+    --shadow-sm: 0 1px 3px rgba(26,23,20,0.04);
+    --shadow-md: 0 4px 16px rgba(26,23,20,0.06);
+    --shadow-lg: 0 8px 32px rgba(26,23,20,0.08);
+    --shadow-hover: 0 12px 40px rgba(26,23,20,0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ============================================================
+     SIDEBAR
+     ============================================================ */
+  .sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background: var(--text-primary);
+    color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    padding: 32px 28px 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .sidebar-brand h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #FFFFFF;
+  }
+
+  .sidebar-brand p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,0.5);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 400;
+    transition: all 0.2s;
+  }
+
+  .nav-item:hover {
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.06);
+  }
+
+  .nav-item.active {
+    color: #FFFFFF;
+    background: rgba(255,255,255,0.1);
+    font-weight: 500;
+  }
+
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent-rose);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .sidebar-footer {
+    padding: 20px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-rose), var(--accent-plum));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #FFFFFF;
+    flex-shrink: 0;
+  }
+
+  .user-info { display: flex; flex-direction: column; }
+
+  .user-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .user-role {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* ============================================================
+     MAIN CONTENT
+     ============================================================ */
+  .main-content {
+    flex: 1;
+    margin-left: 260px;
+    padding: 40px 48px;
+    max-width: 1200px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    margin-bottom: 16px;
+  }
+
+  .back-link:hover {
+    color: var(--text-secondary);
+  }
+
+  .page-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 300;
+    margin-bottom: 32px;
+  }
+
+  /* ============================================================
+     CLIENT HEADER
+     ============================================================ */
+  .client-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .client-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    background: var(--bg-card);
+  }
+
+  .client-logo svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .client-info h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .client-info p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .stat-cards {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 28px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    min-width: 140px;
+  }
+
+  .stat-card .stat-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .stat-card .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ============================================================
+     TABS (CSS-only)
+     ============================================================ */
+  .tabs-wrapper {
+    margin-top: 8px;
+  }
+
+  .tab-radio { display: none; }
+  .tab-panel { display: none; }
+
+  #tab1:checked ~ .tabs-container .tab-panel-1 { display: block; }
+  #tab2:checked ~ .tabs-container .tab-panel-2 { display: block; }
+  #tab3:checked ~ .tabs-container .tab-panel-3 { display: block; }
+
+  .tabs-nav {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-label {
+    display: inline-block;
+    padding: 12px 24px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+
+  .tab-label:hover {
+    color: var(--text-secondary);
+  }
+
+  #tab1:checked ~ .tabs-nav .tab-label[for="tab1"],
+  #tab2:checked ~ .tabs-nav .tab-label[for="tab2"],
+  #tab3:checked ~ .tabs-nav .tab-label[for="tab3"] {
+    color: var(--accent-gold);
+    border-bottom-color: var(--accent-gold);
+    font-weight: 500;
+  }
+
+  /* ============================================================
+     TABLE
+     ============================================================ */
+  .table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    background: var(--bg-secondary);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 14px 20px;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  td {
+    font-size: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+
+  /* ============================================================
+     BADGES
+     ============================================================ */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+
+  .badge-production {
+    background: rgba(138,154,123,0.12);
+    color: var(--accent-sage);
+  }
+
+  .badge-qa {
+    background: rgba(196,130,122,0.12);
+    color: var(--accent-rose);
+  }
+
+  .badge-approved {
+    background: rgba(184,150,90,0.12);
+    color: var(--accent-gold);
+  }
+
+  .badge-processing {
+    background: rgba(184,150,90,0.12);
+    color: var(--accent-gold);
+  }
+
+  .badge-shipped {
+    background: rgba(138,154,123,0.12);
+    color: var(--accent-sage);
+  }
+
+  .badge-pending {
+    background: rgba(139,114,145,0.12);
+    color: var(--accent-plum);
+  }
+
+  .badge-confirmed {
+    background: rgba(196,130,122,0.12);
+    color: var(--accent-rose);
+  }
+
+  .badge-unread {
+    background: rgba(196,130,122,0.12);
+    color: var(--accent-rose);
+  }
+
+  .badge-read {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 1024px) {
+    .sidebar { display: none; }
+    .main-content { margin-left: 0; }
+  }
+
+  @media (max-width: 768px) {
+    .client-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .stat-cards {
+      margin-left: 0;
+      width: 100%;
+    }
+    .stat-card {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .main-content {
+      padding: 24px 16px;
+    }
+    .stat-cards {
+      flex-direction: column;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <h1>LUMIERE</h1>
+    <p>by ScaleCPG</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+      Dashboard
+    </a>
+    <a href="clients.html" class="nav-item active">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+      Clients
+    </a>
+    <a class="nav-item" href="order-requests.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+      Order Requests
+      <span class="nav-badge">14</span>
+    </a>
+    <a class="nav-item" href="product-catalog.html">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      Product Catalog
+    </a>
+    <a href="inventory.html" class="nav-item">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+      Inventory
+    </a>
+    <a href="formulation-library.html" class="nav-item">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+      Formulation Library
+    </a>
+    <div style="height: 12px"></div>
+    <a href="settings.html" class="nav-item">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar">JL</div>
+    <div class="user-info">
+      <span class="user-name">James Lim</span>
+      <span class="user-role">Production Manager</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main class="main-content">
+
+  <a href="clients.html" class="back-link">&larr; Back to Clients</a>
+
+  <h2 class="page-title">Halo Derma</h2>
+  <p class="page-subtitle">Dermatologist-developed skincare</p>
+
+  <!-- Client Header -->
+  <div class="client-header">
+    <div class="client-logo">
+      <svg viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="16" fill="#E8D5B5"/>
+        <circle cx="20" cy="20" r="6" fill="#B8965A"/>
+        <circle cx="20" cy="20" r="10" stroke="#B8965A" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>
+      </svg>
+    </div>
+    <div class="client-info">
+      <h3>Halo Derma</h3>
+      <p>Dermatologist-developed skincare</p>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-value">15</div>
+        <div class="stat-label">Active SKUs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">3</div>
+        <div class="stat-label">Open Orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">2</div>
+        <div class="stat-label">Unread Messages</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabbed Content -->
+  <div class="tabs-wrapper">
+    <input type="radio" name="tabs" id="tab1" class="tab-radio" checked>
+    <input type="radio" name="tabs" id="tab2" class="tab-radio">
+    <input type="radio" name="tabs" id="tab3" class="tab-radio">
+    <div class="tabs-nav">
+      <label for="tab1" class="tab-label">Active SKUs</label>
+      <label for="tab2" class="tab-label">Order Requests</label>
+      <label for="tab3" class="tab-label">Inbox Messages</label>
+    </div>
+    <div class="tabs-container">
+
+      <!-- Tab 1: Active SKUs -->
+      <div class="tab-panel tab-panel-1">
+        <div class="table-card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Product Name</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>HD-5001</td>
+                  <td>Barrier Repair Cream</td>
+                  <td>Skincare</td>
+                  <td><span class="badge badge-production">In Production</span></td>
+                  <td>3,800/mo</td>
+                </tr>
+                <tr>
+                  <td>HD-5002</td>
+                  <td>Gentle Enzyme Exfoliant</td>
+                  <td>Skincare</td>
+                  <td><span class="badge badge-approved">Approved</span></td>
+                  <td>2,200/mo</td>
+                </tr>
+                <tr>
+                  <td>HD-5003</td>
+                  <td>Ceramide Hydration Gel</td>
+                  <td>Skincare</td>
+                  <td><span class="badge badge-production">In Production</span></td>
+                  <td>4,100/mo</td>
+                </tr>
+                <tr>
+                  <td>HD-5004</td>
+                  <td>Zinc Blemish Treatment</td>
+                  <td>Skincare</td>
+                  <td><span class="badge badge-qa">Pending QA</span></td>
+                  <td>1,500/mo</td>
+                </tr>
+                <tr>
+                  <td>HD-5005</td>
+                  <td>Calming Centella Serum</td>
+                  <td>Skincare</td>
+                  <td><span class="badge badge-production">In Production</span></td>
+                  <td>2,900/mo</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Order Requests -->
+      <div class="tab-panel tab-panel-2">
+        <div class="table-card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ORD-4450</td>
+                  <td>Barrier Repair Cream</td>
+                  <td>7,600 units</td>
+                  <td>Feb 13, 2026</td>
+                  <td><span class="badge badge-processing">Processing</span></td>
+                </tr>
+                <tr>
+                  <td>ORD-4451</td>
+                  <td>Ceramide Hydration Gel</td>
+                  <td>8,200 units</td>
+                  <td>Feb 22, 2026</td>
+                  <td><span class="badge badge-confirmed">Confirmed</span></td>
+                </tr>
+                <tr>
+                  <td>ORD-4452</td>
+                  <td>Gentle Enzyme Exfoliant</td>
+                  <td>4,400 units</td>
+                  <td>Mar 1, 2026</td>
+                  <td><span class="badge badge-pending">Pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Inbox Messages -->
+      <div class="tab-panel tab-panel-3">
+        <div class="table-card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>From</th>
+                  <th>Subject</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Dr. Anya Mehta (Halo Derma)</td>
+                  <td>Clinical trial results for Centella Serum</td>
+                  <td>Feb 9, 2026</td>
+                  <td><span class="badge badge-unread">Unread</span></td>
+                </tr>
+                <tr>
+                  <td>Dr. Anya Mehta (Halo Derma)</td>
+                  <td>Updated ingredient compliance documentation</td>
+                  <td>Feb 7, 2026</td>
+                  <td><span class="badge badge-unread">Unread</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+</body>
+</html>

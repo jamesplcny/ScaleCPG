@@ -1,0 +1,826 @@
+================================================================================
+                         ScaleCPG — FULL SYSTEM BREAKDOWN
+================================================================================
+
+TABLE OF CONTENTS
+  1. What This Application Is
+  2. Tech Stack
+  3. Database Structure (All 12 Tables)
+  4. Authentication & Authorization
+  5. Route Map (Every Page & What It Does)
+  6. Component Architecture
+  7. Data Workflows (Step-by-Step)
+  8. Design System
+  9. File-by-File Reference
+ 10. Incomplete / Placeholder Features
+
+================================================================================
+1. WHAT THIS APPLICATION IS
+================================================================================
+
+ScaleCPG is a B2B web application for cosmetic/personal-care private-label
+manufacturers. It gives a manufacturer a single dashboard to manage:
+
+  - Their client list (the brands they produce for)
+  - Incoming order requests from those clients
+  - A product catalog of everything they can manufacture
+  - Inventory tracking for raw materials, packaging, and accessories
+  - A public profile page so brands can find them on a marketplace
+  - A formulation library (planned, not yet built)
+
+Think of it as "Shopify for the back office of a contract manufacturer."
+
+The app originally had a second portal for brands (the companies buying from
+manufacturers), but that has been removed. The landing page still shows
+brand-facing marketing copy and buttons, but they are inert — clicking them
+does nothing. Only the manufacturer side is functional.
+
+================================================================================
+2. TECH STACK
+================================================================================
+
+Frontend:
+  - Next.js 16 (App Router, src/ directory)
+  - React 19
+  - TypeScript (strict mode)
+  - Tailwind CSS v4 (CSS-native @theme config, NOT tailwind.config.ts)
+  - lucide-react for icons
+  - clsx + tailwind-merge for class merging (cn() utility)
+
+Backend / Data:
+  - Supabase (PostgreSQL + Auth + Row Level Security)
+  - @supabase/ssr for server/client helpers
+  - Next.js Server Actions for all mutations
+  - Next.js Middleware for auth session management
+
+Hosting:
+  - Designed for Vercel (standard Next.js deployment)
+
+================================================================================
+3. DATABASE STRUCTURE
+================================================================================
+
+There are 12 tables in the Supabase PostgreSQL database. Every table uses UUID
+primary keys (gen_random_uuid()) and has Row Level Security (RLS) enabled.
+
+All data is scoped by user_id — each manufacturer only sees their own data.
+
+------------------------------------------------------------------------------
+3a. CORE BUSINESS TABLES
+------------------------------------------------------------------------------
+
+TABLE: clients
+  Purpose: Brands/companies the manufacturer works with
+  Columns:
+    id          uuid PK
+    user_id     uuid FK → auth.users (the manufacturer who owns this client)
+    name        text
+    brand_id    uuid FK → brands (nullable, legacy column from removed feature)
+    created_at  timestamptz
+  RLS: Own data only (user_id = auth.uid())
+  Indexes: user_id, (user_id + created_at DESC)
+
+TABLE: categories
+  Purpose: Product categories (e.g., "Skincare", "Haircare", "Lip Care")
+  Columns:
+    id          uuid PK
+    user_id     uuid FK → auth.users
+    name        text
+    brand_id    uuid (nullable, legacy)
+    created_at  timestamptz
+  RLS: Own data only
+  Constraint: UNIQUE(user_id, name) — no duplicate category names per user
+
+TABLE: products
+  Purpose: Individual products the manufacturer can produce
+  Columns:
+    id            uuid PK
+    user_id       uuid FK → auth.users
+    category_id   uuid FK → categories (nullable)
+    name          text
+    description   text (nullable)
+    moq           int (minimum order quantity, nullable)
+    brand_id      uuid (nullable, legacy)
+    created_at    timestamptz
+  RLS: Own data only
+  Notes: Also has lead_time_min, lead_time_max, cost_min, cost_max columns
+         in the DB schema but these aren't used in the current UI.
+
+TABLE: client_products
+  Purpose: Junction table — which products are assigned to which clients
+  Columns:
+    id          uuid PK
+    user_id     uuid FK → auth.users
+    client_id   uuid FK → clients
+    product_id  uuid FK → products
+    created_at  timestamptz
+  RLS: Own data only
+  Notes: This is how the app knows "Client X gets Products A, B, and C"
+
+TABLE: orders
+  Purpose: Order requests from clients to the manufacturer
+  Columns:
+    id                  uuid PK
+    user_id             uuid FK → auth.users
+    order_number        text (auto-generated: ORD-001, ORD-002, etc.)
+    client_id           uuid FK → clients (nullable)
+    client_name         text (denormalized for display)
+    product_name        text (denormalized for display)
+    quantity            int
+    status              text (pending, approved, production, shipped,
+                              procurement_delay, label_delay, logistics_delay)
+    shipment_type       text (UPS, LTL, FTL)
+    requested_date      text (formatted date string)
+    requested_due_date  text (nullable)
+    ups_labels_uploaded boolean
+    delay_note          text (nullable — reason for delay)
+    brand_id            uuid (nullable, legacy)
+    created_at          timestamptz
+  RLS: Own data only
+
+TABLE: inventory_items
+  Purpose: Raw materials, packaging, and accessories in stock
+  Columns:
+    id          uuid PK
+    user_id     uuid FK → auth.users
+    type        text ("raw-material", "packaging", "accessory")
+    name        text
+    quantity    int
+    unit        text (e.g., "kg", "units", "liters")
+    brand_id    uuid (nullable, legacy)
+    updated_at  timestamptz
+    created_at  timestamptz
+  RLS: Own data only
+
+------------------------------------------------------------------------------
+3b. PROFILE & MARKETPLACE TABLES
+------------------------------------------------------------------------------
+
+TABLE: manufacturer_profiles
+  Purpose: Public-facing company profile for the marketplace
+  Columns:
+    id                    uuid PK
+    user_id               uuid FK → auth.users (UNIQUE — one profile per user)
+    company_name          text
+    company_description   text
+    created_at            timestamptz
+    updated_at            timestamptz
+  RLS: Owner can read/write. EVERYONE can read (public marketplace).
+  Notes: Also has a "moq" text column in the DB but not used in current UI.
+
+TABLE: profile_skus
+  Purpose: Which products to showcase on the public manufacturer profile
+  Columns:
+    id          uuid PK
+    user_id     uuid FK → auth.users
+    product_id  uuid FK → products
+    created_at  timestamptz
+  RLS: Owner can read/write/delete. EVERYONE can read (public marketplace).
+  Constraint: UNIQUE(user_id, product_id)
+
+------------------------------------------------------------------------------
+3c. AUTH TABLE
+------------------------------------------------------------------------------
+
+TABLE: user_roles
+  Purpose: Maps Supabase auth users to application roles
+  Columns:
+    user_id     uuid PK, FK → auth.users
+    role        text (currently only "manufacturer_admin" is used)
+    created_at  timestamptz
+  RLS: Own data only
+  Constraint: CHECK (role IN ('manufacturer_admin', 'brand_user'))
+
+------------------------------------------------------------------------------
+3d. SYSTEM / UTILITY TABLES (not actively used in UI)
+------------------------------------------------------------------------------
+
+TABLE: alerts
+  Purpose: System alerts (low stock warnings, etc.) — exists but not wired up
+  Columns: id, title, description, severity, created_at
+
+TABLE: formulations
+  Purpose: Base formulation recipes — exists but UI is placeholder only
+  Columns: id, name, category, subtitle, ingredients[], packaging_options[],
+           add_ons[], created_at
+
+TABLE: activities
+  Purpose: Activity feed entries — exists but not wired up to any UI
+  Columns: id, type, title, description, accent_color, time_label, created_at
+
+------------------------------------------------------------------------------
+3e. DATABASE HELPER FUNCTIONS
+------------------------------------------------------------------------------
+
+FUNCTION: is_manufacturer_admin() → boolean
+  Returns true if the current auth user has role 'manufacturer_admin'.
+  Used in RLS policies to give manufacturers access to all their data.
+
+FUNCTION: my_brand_ids() → SETOF uuid
+  Returns brand IDs the current user is associated with.
+  Legacy function from the removed brand portal.
+
+================================================================================
+4. AUTHENTICATION & AUTHORIZATION
+================================================================================
+
+SIGNUP / LOGIN FLOW:
+  1. User visits /login
+  2. Enters email + password
+  3. For signup: Supabase sends confirmation email, user must verify
+  4. For login: Supabase validates credentials
+  5. On success: Full page redirect to /dashboard (window.location.href)
+  6. A user_roles row must exist with role = 'manufacturer_admin'
+     (this is inserted manually or via a backfill script after migration 004)
+
+MIDDLEWARE (runs on every request):
+  File: supabase/utils/middleware.ts → called by src/middleware.ts
+
+  1. Refreshes the Supabase auth session (keeps cookies alive)
+  2. Checks if the route is public (/ or /login)
+  3. If not public and user is not authenticated → redirect to /login
+  4. Sets an x-pathname header so the layout knows which page is being rendered
+
+LAYOUT AUTH CHECK:
+  File: src/app/layout.tsx
+
+  1. Reads x-pathname from middleware header
+  2. Checks if user is authenticated (supabase.auth.getUser())
+  3. If authenticated AND on a manufacturer route → shows the Sidebar
+  4. Manufacturer routes are auto-detected from NAV_ITEMS in constants.ts
+
+ROUTE GUARDS (used in individual pages):
+  File: src/lib/auth.ts
+
+  getUserRole():
+    - Checks auth.getUser() for current session
+    - Looks up user_roles table for their role
+    - Returns { user: {id, email}, role } or null
+
+  requireManufacturerAdmin():
+    - Calls getUserRole()
+    - If no auth or wrong role → redirect("/login")
+    - Returns AuthInfo on success
+
+ROW LEVEL SECURITY:
+  Every table has RLS enabled. The policies ensure:
+  - Manufacturers can only see/edit their own data (user_id = auth.uid())
+  - Some tables allow manufacturer_admin to see all data via
+    is_manufacturer_admin() helper function
+  - manufacturer_profiles and profile_skus are publicly readable (marketplace)
+
+================================================================================
+5. ROUTE MAP
+================================================================================
+
+PUBLIC ROUTES (no authentication required):
+  /                    Landing page — marketing site
+  /login               Manufacturer login/signup form
+
+AUTHENTICATED ROUTES (redirect to /login if not signed in):
+  /dashboard           Main hub — 5 section cards linking to each area
+  /profile             Edit company name, description, and featured SKUs
+  /clients             Grid of all clients with add/remove
+  /clients/[clientId]  Single client detail: their SKUs, orders, and delays
+  /orders              Order management with 4-tab interface
+  /products            Product catalog with category filtering
+  /inventory           Inventory table with type filtering
+  /formulations        Placeholder — "Feature coming soon"
+
+DETAILED PAGE DESCRIPTIONS:
+
+/ (Landing Page)
+  Static marketing content. Sections:
+  - Sticky nav bar with "Manufacturer Login" link and "Brand Login" button
+  - Hero with gradient headline and two CTA buttons
+  - Social proof logos (placeholder brand names)
+  - "How It Works" — two columns: For Brands (3 steps) / For Manufacturers (3 steps)
+  - "Why ScaleCPG" — 4 benefit cards
+  - Testimonials — 3 quote cards
+  - FAQ — 5 expandable accordions
+  - Final CTA section with buttons
+  - Footer
+  Note: All brand-related buttons are inert <button> elements with no navigation.
+
+/login (Manufacturer Auth)
+  Client component with tab toggle between Login and Create Account.
+  - Login: email + password → signInWithPassword → redirect /dashboard
+  - Signup: email + password → signUp → "check your email" message
+  - Error display for invalid credentials
+  - Minimum 6-character password validation
+
+/dashboard (Dashboard Home)
+  Shows "Good morning, James" greeting and 5 clickable cards:
+    1. Clients → /clients (gold accent)
+    2. Order Requests → /orders (gold accent)
+    3. Product Catalog → /products (sage accent)
+    4. Inventory → /inventory (plum accent)
+    5. Formulation Library → /formulations (teal accent)
+  Each card has icon, description, hover lift animation, and gradient bar.
+
+/clients (Active Clients)
+  Header with "Clients" title, subtitle, and "+ Add Client" button.
+  Body: responsive grid of ClientCard components.
+  Each card shows: initials avatar, client name, arrow link.
+  Click card → navigate to /clients/[clientId].
+  "+ Add Client" opens modal → enter name → createClientAction → insert to DB.
+  Each card has a remove (trash) button → confirm → deleteClientAction.
+  Empty state: "No clients yet" message.
+
+/clients/[clientId] (Client Detail)
+  Top section: large initials avatar, client name, "Client since" date.
+  Three data sections:
+    1. SKUs — table of products assigned to this client
+       Columns: Product Name, Category, MOQ, Remove button
+       "+ Add SKU" button → modal with product picker → addClientSkuAction
+    2. Orders — table of this client's orders
+       Columns: Order #, Product, Qty, Shipment Type, Status (badge), Date
+       "Create Order" button → modal form → createOrderAction
+    3. Delays — table of delayed orders (status contains "delay")
+       Columns: Order #, Product, Qty, Status (badge), Date, Actions
+       "View Note" button → modal showing delay_note text
+       "Resolve" button → updateOrderStatusAction(status: "pending")
+
+/orders (Order Management)
+  Header with title and "Create Order" button.
+  Main content is the OrdersControls client component with 4 tabs:
+
+  Tab 1: "Order Request" — pending orders
+    Table: Order #, Client, SKU, Qty, Shipment Type, Requested Date, Actions
+    "Respond" button opens RespondModal:
+      - Shows read-only order details
+      - Editable quantity field
+      - Conditional shipping fields based on shipment_type:
+        UPS: box dimensions, box weight, units/box, number of boxes
+        LTL/FTL: pallet count, pallet weight, pallet dimensions
+      - Three action buttons: Decline, Send to Delay, Send to Shipping
+      - "Send to Delay" shows sub-step with textarea for reason
+
+  Tab 2: "Shipments" — approved orders split by shipping method
+    UPS Section: table with "Request UPS Labels" button (placeholder)
+    LTL/FTL Section: grouped by client, "Create Pickup Request" button
+      Opens modal showing all LTL/FTL orders for that client
+
+  Tab 3: "Delays" — orders with delay status
+    Table with "View" (shows delay_note) and "Resolve" buttons
+
+  Tab 4: "Shipping History" — shipped orders
+    Table with status badges, read-only
+
+/products (Product Catalog)
+  Two stat cards at top: Total Products count, Categories count.
+  Filter tabs: "All Products" + one tab per category (URL-based filtering).
+  Grid of ProductCard components.
+
+  Each ProductCard (click to edit):
+    - Shows product name, category badge (color-coded), MOQ
+    - Lists which clients use this product
+    - Click opens edit modal: name, description, category select, MOQ
+    - Category select has inline "create new category" option
+    - Save → updateProductAction
+
+  "+ Add Product" button → modal → createProductAction
+  "+ Add Category" button → modal → createCategoryAction
+
+/inventory (Inventory Management)
+  Three type tabs: Raw Materials, Packaging, Accessories (URL-based filtering).
+  Summary stat card showing count for current type.
+  Table per type:
+    Columns: Name, Quantity, Unit, Last Updated, Actions
+    "Edit" button → modal → updateInventoryItemAction
+  "+ Add Item" button → modal with type/name/quantity/unit fields
+  Empty state per type if no items.
+
+/profile (Manufacturer Profile)
+  Two sections:
+  1. Company Info form (company name + description textarea) → saveProfileAction
+     Upserts to manufacturer_profiles table.
+  2. Profile SKUs table — products featured on public profile
+     Table: Product Name, Category, MOQ, Remove button
+     "+ Add SKU" button → modal picker → addProfileSkuAction
+     Remove → removeProfileSkuAction
+  Note: This data powers what brands would see on the public marketplace.
+
+/formulations (Formulation Library)
+  Placeholder page. Shows centered card with BookOpen icon and
+  "Feature coming soon" message. No data fetching or interactivity.
+
+================================================================================
+6. COMPONENT ARCHITECTURE
+================================================================================
+
+The app follows Next.js App Router conventions:
+  - Server Components by default (data fetching at the page level)
+  - Client Components only where interactivity is needed (modals, forms, tabs)
+
+LAYOUT COMPONENTS:
+
+  Sidebar.tsx (Client Component)
+    Fixed 260px left navigation bar. Dark background.
+    Contains: ScaleCPG logo, 7 nav items (from NAV_ITEMS constant), user
+    profile section with initials avatar, sign-out button.
+    Active route gets a left accent bar and highlighted background.
+    Responsive: hidden on screens < 1024px wide.
+    Sign-out: calls supabase.auth.signOut() → redirect to /login.
+
+  TopBar.tsx (Server Component)
+    Page header bar. Props: title, subtitle, searchPlaceholder.
+    Left side: serif title + secondary text.
+    Right side: search input (decorative), bell icon with red notification dot.
+    Used on: profile and formulations pages.
+
+UI COMPONENTS:
+
+  Badge.tsx (Server Component)
+    Renders a colored status pill. Auto-maps status strings to colors:
+      pending/processing → gold
+      approved/confirmed/in-stock → sage
+      production/on-order → plum
+      shipped/critical → rose
+      Default → gray
+    Used throughout orders, inventory, and client detail pages.
+
+  Modal.tsx (Client Component)
+    Portal-based modal dialog. Renders to document.body.
+    Features: backdrop click to close, Escape key to close, X button.
+    Props: open, onClose, title, maxWidth, children.
+    Used by every "Add" and "Edit" button in the app.
+
+  FilterTabs.tsx (Client Component)
+    Horizontal tab bar that updates URL search params.
+    Props: tabs array, paramKey (default "filter").
+    Clicking a tab does router.push with the new filter value.
+    Used on: products, orders, inventory pages.
+
+  DataTable.tsx (Server Component)
+    Composition-based table: exports DataTable, TableRow, TableCell.
+    Gray header row, hover effect on body rows, horizontal scroll on overflow.
+    Entrance animation (fade-in-up).
+    Used on: client detail, orders, inventory pages.
+
+CARD COMPONENTS:
+
+  DashboardCard.tsx (Server Component)
+    Link card with icon, title, description, arrow.
+    Hover: lifts up, gradient bar appears at top.
+    Staggered entrance animation based on index prop.
+
+  ClientCard.tsx (Server Component)
+    Client card with initials avatar, name, arrow link, action slot.
+    Links to /clients/[clientId].
+    Hover: gradient accent bar appears.
+
+  ProductCard.tsx (Client Component)
+    Clickable card that opens an edit modal.
+    Shows: name, category badge, MOQ, assigned clients.
+    Modal contains full edit form with save/cancel.
+
+ORDER COMPONENTS:
+
+  OrdersControls.tsx (Client Component)
+    The most complex component in the app. Manages 4 tabs of order states
+    with multiple modals (Respond, Pickup Request, View Delay Note).
+    Receives initialOrders from server, manages state client-side.
+    Calls server actions for status updates.
+
+BUTTON / FORM COMPONENTS (all Client Components):
+  Located in each feature's page directory:
+  - AddClientButton, RemoveClientButton
+  - AddSkuButton, RemoveSkuButton
+  - CreateClientOrderButton, CreateOrderButton
+  - AddProductButton, AddCategoryButton, CategorySelect
+  - AddInventoryItemButton, EditInventoryItemButton
+  - ViewDelayNoteButton
+  Each opens a Modal, contains a form, and calls a Server Action on submit.
+
+================================================================================
+7. DATA WORKFLOWS
+================================================================================
+
+WORKFLOW 1: MANUFACTURER ONBOARDING
+  1. Manufacturer visits /login
+  2. Creates account (email + password)
+  3. Receives confirmation email from Supabase
+  4. Clicks link to verify email
+  5. Returns to /login → signs in
+  6. Supabase creates auth.users row automatically
+  7. Admin manually inserts user_roles row with 'manufacturer_admin'
+  8. On next login, middleware allows access, layout shows sidebar
+  9. Redirected to /dashboard
+
+WORKFLOW 2: ADDING A CLIENT
+  1. Manufacturer navigates to /clients
+  2. Clicks "+ Add Client"
+  3. Modal opens → enters client name (e.g., "GlowCo")
+  4. Submit → createClientAction runs:
+     - Trims the name
+     - INSERT INTO clients (name, user_id)
+     - revalidatePath("/clients")
+  5. Page refreshes with new client card in grid
+  6. The client card shows initials ("GC") and links to detail page
+
+WORKFLOW 3: SETTING UP A CLIENT'S PRODUCTS
+  1. From /clients, click a client card → /clients/[clientId]
+  2. SKUs section shows empty table
+  3. Click "+ Add SKU"
+  4. Modal shows all products from the manufacturer's catalog
+  5. Select a product → addClientSkuAction runs:
+     - INSERT INTO client_products (user_id, client_id, product_id)
+     - revalidatePath for client detail and products pages
+  6. Product now appears in the client's SKU table
+  7. On the /products page, that product now shows this client's name
+
+WORKFLOW 4: CREATING AN ORDER
+  Two entry points:
+  A) From /clients/[clientId] → "Create Order" button
+  B) From /orders → "Create Order" button
+
+  1. Modal opens with fields:
+     - Client (pre-selected if from client detail)
+     - Product/SKU name
+     - Quantity
+     - Shipment type (UPS, LTL, or FTL)
+  2. Submit → createOrderAction runs:
+     - Counts existing orders to auto-generate order number (ORD-001, etc.)
+     - INSERT INTO orders with status "pending"
+     - Requested date = today's date formatted
+     - revalidatePath("/orders")
+  3. New order appears in the "Order Request" tab on /orders
+
+WORKFLOW 5: PROCESSING AN ORDER
+  1. Navigate to /orders → "Order Request" tab
+  2. See pending orders in table
+  3. Click "Respond" on an order → RespondModal opens
+  4. Modal shows order details and editable fields:
+     - Quantity (editable)
+     - If UPS: box dimensions, weight, units per box, number of boxes
+     - If LTL/FTL: pallet count, weight, dimensions
+  5. Three action buttons:
+
+     APPROVE → "Send to Shipping":
+       - Updates order status client-side (moves to Shipments tab)
+       - Note: shipping fields are captured in client state only,
+         not yet persisted to database
+
+     DELAY → "Send to Delay":
+       - Sub-step appears with textarea for delay reason
+       - Submit → updateOrderStatusAction(orderId, "[type]_delay", note)
+       - Order moves to "Delays" tab with the note attached
+
+     DECLINE:
+       - updateOrderStatusAction(orderId, "declined")
+       - Order removed from active views
+
+WORKFLOW 6: RESOLVING A DELAY
+  1. Navigate to /orders → "Delays" tab
+  2. See delayed orders with their delay type badges
+  3. "View" button → modal shows the delay_note text
+  4. "Resolve" button → updateOrderStatusAction(orderId, "pending")
+  5. Order moves back to "Order Request" tab for re-processing
+
+WORKFLOW 7: MANAGING THE PRODUCT CATALOG
+  1. Navigate to /products
+  2. See stat cards (total products, total categories) and product grid
+  3. To add a category: "+ Add Category" → modal → enter name →
+     createCategoryAction → INSERT INTO categories
+  4. To add a product: "+ Add Product" → modal → enter name, description,
+     select category, set MOQ → createProductAction → INSERT INTO products
+  5. To edit: click any product card → modal with current values →
+     change fields → Save → updateProductAction → UPDATE products
+  6. Filter by category using tabs (URL-based, no page reload)
+
+WORKFLOW 8: TRACKING INVENTORY
+  1. Navigate to /inventory
+  2. Three tabs: Raw Materials, Packaging, Accessories
+  3. Each shows a count card and a table of items
+  4. "+ Add Item" → modal → enter type, name, quantity, unit →
+     createInventoryItemAction → INSERT INTO inventory_items
+  5. "Edit" button per row → modal with current values →
+     updateInventoryItemAction → UPDATE inventory_items (also sets updated_at)
+  6. Table shows: Name, Quantity, Unit, Last Updated
+
+WORKFLOW 9: SETTING UP PUBLIC PROFILE
+  1. Navigate to /profile
+  2. "Company Info" section:
+     - Edit company name and description
+     - Click "Save Changes" → saveProfileAction →
+       UPSERT INTO manufacturer_profiles
+  3. "Profile SKUs" section:
+     - Table of products currently featured on public profile
+     - "+ Add SKU" → modal with product picker →
+       addProfileSkuAction → INSERT INTO profile_skus
+     - Remove button → removeProfileSkuAction → DELETE FROM profile_skus
+  4. This data would be visible on the public manufacturer browse page
+     (that page was removed along with the brand portal, but the data
+     layer still works)
+
+================================================================================
+8. DESIGN SYSTEM
+================================================================================
+
+FONTS:
+  Cormorant Garamond — Serif, used for headings (h1, h2, page titles)
+    Weights: 300 (light), 400 (regular), 500 (medium), 600 (semibold)
+    Variable: --font-cormorant
+
+  Outfit — Sans-serif, used for body text, buttons, labels
+    Weights: 300, 400, 500, 600
+    Variable: --font-outfit
+
+COLOR PALETTE (defined in globals.css @theme inline):
+  Backgrounds:
+    bg-primary:   #FAF7F4  (warm off-white, main background)
+    bg-secondary:  #F3EDE7  (slightly darker, hover states)
+    bg-card:       #FFFFFF  (pure white, card backgrounds)
+
+  Text:
+    text-primary:   #1A1714  (near-black, headings and body)
+    text-secondary: #6B6560  (medium gray, subtitles and descriptions)
+    text-muted:     #A49E98  (light gray, hints and placeholders)
+
+  Accents (each has a main and light variant):
+    Rose:  #C4827A / #E8C4BF  (used for: shipped status, critical alerts)
+    Gold:  #B8965A / #E8D5B5  (used for: pending status, clients section)
+    Sage:  #8A9A7B / #C5D1BC  (used for: approved/in-stock, products section)
+    Plum:  #8B7291 / #C9BBCE  (used for: production/on-order, inventory)
+    Teal:  #6B9E9E / #B8D4D4  (used for: formulations section)
+
+  Border: #E8E2DB
+
+  The overall aesthetic is warm, neutral, and premium — designed to feel like
+  a luxury/beauty industry tool rather than a generic SaaS dashboard.
+
+ANIMATION:
+  Primary animation: fade-in-up
+    @keyframes: opacity 0→1, translateY 20px→0, duration 0.5s
+    Applied to cards and content sections on page load
+    Staggered via index: animationDelay = 0.05 + (index * 0.05) seconds
+
+LAYOUT:
+  Sidebar: 260px fixed left, dark background (#1A1714)
+  Main content: ml-[260px] p-8 on desktop, full-width on mobile
+  Responsive breakpoint: max-lg (1024px) — sidebar hides, content goes full-width
+  Card grid: repeat(auto-fill, minmax(280px, 1fr)) — auto-responsive
+  Max content width on landing page: max-w-6xl (1152px)
+
+COMPONENT PATTERNS:
+  Cards: rounded-[16px], border, shadow on hover, gradient accent bar animation
+  Buttons: rounded-lg or rounded-xl, font-medium, transition-colors
+  Modals: portal to body, backdrop blur, max-w-sm default, overflow-y-auto
+  Tables: gray header row, hover bg on rows, horizontal scroll wrapper
+  Badges: uppercase, text-[10px], tracking-wider, auto-colored by status
+  Forms: border-border rounded-lg px-3 py-2, focus ring accent
+
+================================================================================
+9. FILE-BY-FILE REFERENCE
+================================================================================
+
+src/
+  app/
+    layout.tsx          Root layout. Loads fonts, checks auth, shows sidebar
+    page.tsx            Landing page (marketing site)
+    globals.css         Tailwind v4 theme tokens, animations, base styles
+
+    login/
+      page.tsx          Login/signup form (client component)
+
+    dashboard/
+      page.tsx          5 section cards with hover animations
+
+    clients/
+      page.tsx          Client grid with add/remove
+      actions.ts        createClient, deleteClient, addClientSku, removeClientSku
+      AddClientButton.tsx     Modal form for new client
+      RemoveClientButton.tsx  Confirm-delete button
+      [clientId]/
+        page.tsx        Client detail: SKUs, orders, delays
+        AddSkuButton.tsx      Product picker modal
+        RemoveSkuButton.tsx   Remove SKU from client
+        CreateClientOrderButton.tsx  Order form modal
+        ViewDelayNoteButton.tsx      Delay note display modal
+
+    orders/
+      page.tsx          Orders hub with OrdersControls
+      actions.ts        createOrder, updateOrderStatus
+      CreateOrderButton.tsx   Order form modal
+
+    products/
+      page.tsx          Catalog grid with category filter tabs
+      actions.ts        createCategory, createProduct, updateProduct
+      AddProductButton.tsx    New product modal
+      AddCategoryButton.tsx   New category modal
+      CategorySelect.tsx      Dropdown with inline create
+
+    inventory/
+      page.tsx          Inventory table with type tabs
+      actions.ts        createInventoryItem, updateInventoryItem
+      AddInventoryItemButton.tsx   New item modal
+      EditInventoryItemButton.tsx  Edit item modal
+
+    profile/
+      page.tsx          Company info form + profile SKUs
+      actions.ts        saveProfile, addProfileSku, removeProfileSku
+      ProfileForm.tsx   Editable company name/description
+      ProfileSkus.tsx   Featured SKU table with add/remove
+
+    formulations/
+      page.tsx          Placeholder "coming soon" page
+
+    settings/
+      (does not exist yet — referenced in CLAUDE.md but not built)
+
+  components/
+    layout/
+      Sidebar.tsx       Fixed left nav, sign-out, active route indicator
+      TopBar.tsx        Page header with search and bell icon
+    ui/
+      Badge.tsx         Status pill with auto-color mapping
+      Modal.tsx         Portal-based dialog
+      FilterTabs.tsx    URL-based tab filtering
+      DataTable.tsx     Reusable table (composition: DataTable/TableRow/TableCell)
+    cards/
+      DashboardCard.tsx  Section card with hover animation
+      ClientCard.tsx     Client card with initials avatar
+      ProductCard.tsx    Editable product card with modal
+    orders/
+      OrdersControls.tsx  4-tab order management with respond/delay/shipping modals
+
+  lib/
+    utils.ts            cn() helper (clsx + tailwind-merge)
+    constants.ts        NAV_ITEMS, STATUS_COLORS, ACCENT_COLORS
+    auth.ts             getUserRole(), requireManufacturerAdmin()
+    supabase/
+      server.ts         Server-side Supabase client (uses cookies)
+      client.ts         Browser-side Supabase client
+
+  types/
+    database.ts         Full Database type with all 12 table definitions
+
+  middleware.ts         Entry point, delegates to supabase middleware
+
+supabase/
+  utils/
+    middleware.ts       Auth session refresh, route protection, x-pathname header
+  migrations/
+    001_initial_schema.sql    Original 11 tables (demo/seed structure)
+    002_clients_auth.sql      Replaced clients with auth-scoped version
+    003_categories_products.sql  Added categories + products tables
+    004_brand_tenancy.sql     Added user_roles, brands, brand_users, brand_id columns
+    005_manufacturer_profiles.sql  Added manufacturer_profiles + profile_skus
+    006_public_profiles.sql   Made profiles/SKUs publicly readable
+    007_brand_applications.sql  Added brand_applications table
+    008_brand_profile_description.sql  Added brands.description, updated policies
+
+Config files:
+  package.json          Dependencies + scripts (dev, build, lint)
+  tsconfig.json         TypeScript config (strict, @/* path alias)
+  next.config.ts        Next.js config (empty/default)
+  postcss.config.mjs    PostCSS with @tailwindcss/postcss
+  eslint.config.mjs     ESLint config
+
+================================================================================
+10. INCOMPLETE / PLACEHOLDER FEATURES
+================================================================================
+
+1. FORMULATION LIBRARY
+   The /formulations page is a placeholder with "Feature coming soon."
+   The formulations table exists in the database with columns for ingredients,
+   packaging_options, and add_ons (all text arrays), but no UI reads or writes it.
+
+2. NOTIFICATIONS
+   The bell icon in TopBar has a red dot indicator but is purely decorative.
+   The alerts table exists but nothing writes to it or reads from it.
+
+3. SEARCH
+   Search inputs appear in TopBar and on the formulations page but they don't
+   filter anything. They are decorative placeholders.
+
+4. SETTINGS PAGE
+   Referenced in CLAUDE.md as /settings with "Profile form + notifications + team"
+   but the page directory doesn't exist.
+
+5. SHIPPING PERSISTENCE
+   The RespondModal in OrdersControls captures detailed shipping info (box
+   dimensions, pallet counts, etc.) but "Send to Shipping" only updates
+   client-side state. The shipping details are not saved to the database.
+   Only status changes and delay notes are persisted.
+
+6. UPS LABELS
+   The orders table has an ups_labels_uploaded boolean column and the Shipments
+   tab has a "Request UPS Labels" button, but clicking it does nothing.
+
+7. ACTIVITY FEED
+   The activities table exists with type, title, description, accent_color,
+   and time_label columns, but no UI component reads or writes activity data.
+
+8. BRAND PORTAL (REMOVED)
+   Originally had /brand/login, /brand/dashboard, /brand/profile, and
+   /brand/manufacturers pages. All brand-related code has been deleted.
+   The brands and brand_users tables have been dropped from Supabase.
+   Landing page brand buttons are now inert (no navigation).
+   Legacy brand_id columns remain on clients, products, categories, orders,
+   and inventory_items tables but are not populated by any current code.
+
+================================================================================
+END OF DOCUMENT
+================================================================================
