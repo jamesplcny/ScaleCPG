@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
   const rawRole = data.user.user_metadata?.role as string | undefined;
   const metaRole = rawRole === "brand_user" || rawRole === "manufacturer_user" ? rawRole : undefined;
 
-  if (metaRole) {
-    const admin = createAdminClient();
+  const admin = createAdminClient();
 
+  if (metaRole) {
     // Ensure user_roles row exists (idempotent)
     const { data: existing } = await admin
       .from("user_roles")
@@ -110,7 +110,62 @@ export async function GET(request: NextRequest) {
           company_description: (meta.company_description as string) || "",
           location: (meta.location as string) || "",
           moq: (meta.moq as string) || "",
-          // status defaults to 'pending' in the DB
+        });
+      }
+    }
+  }
+
+  // Invitation-based signup: check if email has a pending invitation
+  if (data.user.email) {
+    const { data: invitation } = await admin
+      .from("admin_manufacturer_invitations")
+      .select("id, admin_manufacturer_id")
+      .eq("email", data.user.email)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (invitation) {
+      // Mark invitation as accepted
+      await admin
+        .from("admin_manufacturer_invitations")
+        .update({ status: "accepted", accepted_at: new Date().toISOString() })
+        .eq("id", invitation.id);
+
+      // Ensure user has manufacturer_user role
+      await admin
+        .from("user_roles")
+        .upsert({ user_id: data.user.id, role: "manufacturer_user" as const }, { onConflict: "user_id" });
+
+      // Record team membership in manufacturer_users (canonical link
+      // between auth user and admin_manufacturer).
+      await admin.from("manufacturer_users").upsert(
+        {
+          admin_manufacturer_id: invitation.admin_manufacturer_id,
+          user_id: data.user.id,
+          role: "member" as const,
+        },
+        { onConflict: "admin_manufacturer_id,user_id" }
+      );
+
+      // Ensure the invited user has a manufacturer profile so they can access
+      // the dashboard. Create one if missing, using the admin_manufacturer's
+      // company name as the seed.
+      const { data: existingProfile } = await admin
+        .from("manufacturer_profiles")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        const { data: mfgInfo } = await admin
+          .from("admin_manufacturers")
+          .select("company_name")
+          .eq("id", invitation.admin_manufacturer_id)
+          .maybeSingle();
+
+        await admin.from("manufacturer_profiles").insert({
+          user_id: data.user.id,
+          company_name: mfgInfo?.company_name || "Unnamed Company",
         });
       }
     }

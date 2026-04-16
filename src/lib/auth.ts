@@ -125,3 +125,20 @@ export async function requireBrandUser(): Promise<BrandAuthInfo> {
     brandId: brandUser.brand_id,
   };
 }
+
+export async function requireSuperAdmin(): Promise<{ user: { id: string; email: string } }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email) redirect("/login");
+
+  const { data: roleRow } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (!roleRow) redirect("/login");
+
+  return { user: { id: user.id, email: user.email } };
+}

@@ -1,32 +1,148 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-type Tab = "brand" | "manufacturer";
+async function routeByRole() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    window.location.href = "/login";
+    return;
+  }
+  const { data: roleRow } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const role = roleRow?.role;
+  if (role === "super_admin") window.location.href = "/admin";
+  else if (role === "brand_user") window.location.href = "/brand/dashboard";
+  else if (role === "manufacturer_user" || role === "manufacturer_admin")
+    window.location.href = "/dashboard";
+  else {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+}
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "brand", label: "Brands" },
-  { key: "manufacturer", label: "Manufacturers" },
-];
+function SetPasswordModal({ onClose }: { onClose: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const HELPER: Record<Tab, string> = {
-  brand: "Sign in to browse manufacturers and manage orders.",
-  manufacturer: "Sign in to manage your catalog, clients, and orders.",
-};
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError("Your invite link has expired. Please request a new one.");
+      setLoading(false);
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    if (updateError) {
+      setError(updateError.message);
+      setLoading(false);
+      return;
+    }
+    await routeByRole();
+  }
 
-const SIGNUP_HREF: Record<Tab, string> = {
-  brand: "/brand/signup",
-  manufacturer: "/signup",
-};
+  const inputClass =
+    "w-full px-4 py-2.5 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted font-sans outline-none transition-colors focus:border-accent-rose";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-sm bg-bg-card border border-border rounded-2xl p-6 shadow-[0_32px_80px_rgba(0,0,0,0.25)]">
+        <h2 className="text-lg font-semibold text-text-primary">Set your password</h2>
+        <p className="text-sm text-text-secondary mt-1 mb-5">
+          Choose a password to finish accepting your invite.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="text-sm text-accent-teal bg-accent-teal/10 border border-accent-teal/20 rounded-lg px-4 py-2.5">
+              {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-[11px] text-text-muted uppercase tracking-wider mb-2">
+              New password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className={inputClass}
+              placeholder="At least 6 characters"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] text-text-muted uppercase tracking-wider mb-2">
+              Confirm password
+            </label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              minLength={6}
+              className={inputClass}
+              placeholder="Re-enter password"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 bg-[#4F46E5] border-none rounded-lg text-sm font-medium text-white cursor-pointer transition-all hover:bg-[#4338CA] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? "Setting password..." : "Set Password & Continue"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2 text-xs text-text-muted hover:text-text-primary transition-colors bg-transparent border-none cursor-pointer"
+          >
+            Cancel
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
-  const [tab, setTab] = useState<Tab>("brand");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSetPassword, setShowSetPassword] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("set_password") === "1") {
+      setShowSetPassword(true);
+      // Clean the URL so a refresh doesn't re-trigger the modal
+      const url = new URL(window.location.href);
+      url.searchParams.delete("set_password");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,60 +175,27 @@ export default function LoginPage() {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    let role = roleRow?.role;
+    const role = roleRow?.role;
 
-    // No role row — try to self-heal from user metadata
     if (!role) {
-      const rawMeta = (user.user_metadata?.role ?? user.user_metadata?.signup_role) as string | undefined;
-      // Normalize legacy "manufacturer_admin" to "manufacturer_user"
-      const metaRole = rawMeta === "manufacturer_admin" ? "manufacturer_user" : rawMeta;
-      if (metaRole === "brand_user" || metaRole === "manufacturer_user") {
-        const { error: upsertError } = await supabase
-          .from("user_roles")
-          .upsert({ user_id: user.id, role: metaRole }, { onConflict: "user_id" });
-
-        if (!upsertError) {
-          role = metaRole;
-        }
-      }
-
-      if (!role) {
-        await supabase.auth.signOut();
-        setError("Account not set up \u2014 please complete signup.");
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Check role matches selected tab
-    const isBrand = role === "brand_user";
-    const isManufacturer = role === "manufacturer_user" || role === "manufacturer_admin";
-
-    if (tab === "brand" && !isBrand) {
       await supabase.auth.signOut();
-      setError("No brand account found for this email. Did you mean to sign in as a manufacturer?");
+      setError("No account found. Please contact your administrator for access.");
       setLoading(false);
       return;
     }
 
-    if (tab === "manufacturer" && !isManufacturer) {
-      await supabase.auth.signOut();
-      setError("No manufacturer account found for this email. Did you mean to sign in as a brand?");
-      setLoading(false);
-      return;
-    }
-
-    // Redirect based on role
-    if (isBrand) {
+    if (role === "super_admin") {
+      window.location.href = "/admin";
+    } else if (role === "brand_user") {
       window.location.href = "/brand/dashboard";
-    } else {
+    } else if (role === "manufacturer_user" || role === "manufacturer_admin") {
       window.location.href = "/dashboard";
+    } else {
+      await supabase.auth.signOut();
+      setError("No account found. Please contact your administrator for access.");
+      setLoading(false);
+      return;
     }
-  }
-
-  function switchTab(t: Tab) {
-    setTab(t);
-    setError("");
   }
 
   const inputClass =
@@ -134,31 +217,13 @@ export default function LoginPage() {
             <h1 className="font-semibold text-2xl tracking-tight text-text-primary">
               ScaleCPG
             </h1>
-            <p className="text-sm text-text-secondary mt-1">{HELPER[tab]}</p>
+            <p className="text-sm text-text-secondary mt-1">Sign in to your account</p>
           </div>
 
           <form
             onSubmit={handleSubmit}
             className="bg-bg-card border border-border rounded-2xl p-6 space-y-4"
           >
-            {/* Role Tabs */}
-            <div className="flex gap-1 bg-bg-secondary rounded-[10px] p-1">
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => switchTab(t.key)}
-                  className={`flex-1 py-2 rounded-lg text-[13px] font-sans border-none cursor-pointer transition-all duration-200 ${
-                    tab === t.key
-                      ? "bg-bg-card text-text-primary font-medium shadow-sm"
-                      : "bg-transparent text-text-secondary"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
             {error && (
               <div className="text-sm text-accent-teal bg-accent-teal/10 border border-accent-teal/20 rounded-lg px-4 py-2.5">
                 {error}
@@ -201,16 +266,10 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
-
-            <p className="text-center text-[13px] text-text-muted pt-1">
-              Don&apos;t have an account?{" "}
-              <Link href={SIGNUP_HREF[tab]} className="text-accent-rose hover:underline no-underline font-medium">
-                {tab === "manufacturer" ? "Apply here" : "Create one here"}
-              </Link>
-            </p>
           </form>
         </div>
       </div>
+      {showSetPassword && <SetPasswordModal onClose={() => setShowSetPassword(false)} />}
     </div>
   );
 }

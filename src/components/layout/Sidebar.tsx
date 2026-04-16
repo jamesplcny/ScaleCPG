@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NAV_ITEMS, BRAND_NAV_ITEMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -62,18 +62,6 @@ export function Sidebar({ portal = "manufacturer" }: SidebarProps) {
       </nav>
 
       <div className="pt-5 border-t border-[#E5E7EB] mx-3 mt-0 flex flex-col gap-1 px-1">
-        <Link
-          href={portal === "brand" ? "/brand/profile" : "/profile"}
-          className={cn(
-            "flex items-center gap-4 px-4 py-3 rounded-lg text-sm transition-all duration-200 no-underline",
-            pathname.startsWith(portal === "brand" ? "/brand/profile" : "/profile")
-              ? "bg-[#EEF2FF] text-[#4F46E5] font-medium"
-              : "text-[#6B7280] hover:bg-[#F3F4F6] hover:text-text-primary"
-          )}
-        >
-          <User className="w-5 h-5 shrink-0" />
-          My Profile
-        </Link>
         <button
           onClick={async () => {
             const supabase = createClient();

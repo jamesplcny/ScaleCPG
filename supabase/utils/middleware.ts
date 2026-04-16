@@ -7,15 +7,15 @@ const PUBLIC_ROUTES = [
   "/signup",
   "/brand/signup",
   "/brand/confirm-email",
-  "/brand/manufacturers",
   "/auth/callback",
+  "/pricing",
 ];
 
 function isPublicRoute(pathname: string) {
   return (
     PUBLIC_ROUTES.includes(pathname) ||
-    pathname.startsWith("/manufacturer/") ||
-    pathname.startsWith("/brand/manufacturers/")
+    pathname.startsWith("/widget/") ||
+    pathname.startsWith("/api/")
   );
 }
 

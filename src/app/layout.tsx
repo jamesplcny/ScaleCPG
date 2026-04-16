@@ -50,9 +50,10 @@ export default async function RootLayout({
   const pathname = headerStore.get("x-pathname") ?? "";
 
   // Determine if this is a protected portal route
+  const isAdminRoute = pathname.startsWith("/admin");
   const isExtraProtected = EXTRA_PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
-  const isMfgRoute = NAV_ITEMS.some((item) => pathname.startsWith(item.href)) || pathname === "/profile" || pathname.startsWith("/profile/");
-  const isBrandRoute = BRAND_NAV_ITEMS.some((item) => pathname.startsWith(item.href)) || pathname.startsWith("/brand/profile") || pathname.startsWith("/brand/products");
+  const isMfgRoute = NAV_ITEMS.some((item) => pathname.startsWith(item.href));
+  const isBrandRoute = BRAND_NAV_ITEMS.some((item) => pathname.startsWith(item.href));
   const isProtectedRoute = isMfgRoute || isBrandRoute || isExtraProtected;
 
   // Redirect unauthenticated users away from protected routes
@@ -61,7 +62,7 @@ export default async function RootLayout({
     redirect("/login");
   }
 
-  const showSidebar = isAuthenticated && isProtectedRoute;
+  const showSidebar = isAuthenticated && isProtectedRoute && !isAdminRoute;
 
   return (
     <html lang="en">

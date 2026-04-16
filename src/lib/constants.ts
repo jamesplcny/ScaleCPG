@@ -1,35 +1,31 @@
 import {
   Home,
   Users,
-  LayoutGrid,
-  BookOpen,
-  Search,
-  ShoppingBag,
-  ClipboardList,
+  MessageSquare,
   BarChart3,
-  Package,
+  ClipboardList,
+  Building2,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: Home },
-  { label: "Status Report", href: "/status-report", icon: BarChart3 },
-  { label: "Shipments", href: "/shipments", icon: Package },
+  { label: "Home", href: "/dashboard", icon: Home },
   { label: "Clients", href: "/clients", icon: Users },
-  { label: "Purchase Orders", href: "/purchase-orders", icon: ClipboardList },
-  { label: "Formulation Library", href: "/formulations", icon: BookOpen },
-  { label: "Vault", href: "/products", icon: LayoutGrid },
+  { label: "Sales Leads", href: "/sales-leads", icon: MessageSquare },
 ] as const;
 
 export const BRAND_NAV_ITEMS = [
-  { label: "Dashboard", href: "/brand/dashboard", icon: Home },
+  { label: "Home", href: "/brand/dashboard", icon: Home },
   { label: "Status Report", href: "/brand/status-report", icon: BarChart3 },
-  { label: "Shipments", href: "/brand/shipments", icon: Package },
-  { label: "Purchase Orders", href: "/brand/purchase-orders", icon: ClipboardList },
-  { label: "Manufacturers", href: "/brand/manufacturers", icon: Search },
+  { label: "Open Requests", href: "/brand/open-requests", icon: ClipboardList },
+] as const;
+
+export const ADMIN_NAV_ITEMS = [
+  { label: "Dashboard", href: "/admin", icon: Home },
+  { label: "Manufacturers", href: "/admin/manufacturers", icon: Building2 },
 ] as const;
 
 /** Routes that need sidebar/auth but aren't in the main nav arrays */
-export const EXTRA_PROTECTED_ROUTES = ["/profile", "/brand/profile", "/brand/products"] as const;
+export const EXTRA_PROTECTED_ROUTES = ["/admin"] as const;
 
 export const STATUS_COLORS = {
   pending: { bg: "bg-accent-plum/12", text: "text-accent-plum" },
