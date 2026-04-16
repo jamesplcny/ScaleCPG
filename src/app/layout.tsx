@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Outfit, Inter } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Script from "next/script";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { NAV_ITEMS, BRAND_NAV_ITEMS, EXTRA_PROTECTED_ROUTES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
+
+const GA_ID = "G-KE7VTMTMPY";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -66,6 +69,20 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_ID}');
+          `}
+        </Script>
+      </head>
       <body className={`${cormorant.variable} ${outfit.variable} ${inter.variable} antialiased`}>
         {showSidebar && (
           <Sidebar portal={isBrandRoute ? "brand" : "manufacturer"} />
